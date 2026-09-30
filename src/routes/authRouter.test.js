@@ -21,9 +21,25 @@ test('login', async () => {
     expect(login.body.user).toMatchObject(expectUser);
 });
 
+test('register without email', async() => {
+    const reg = await request(app).post('/api/auth').send({name: 'no email'})
+    expect(reg.status).toBe(400)
+});
+
 function expectation(jwt)
 {
     expect(jwt).toMatch(/^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/); //SETUP correct characters
 }
 
+test('logout', async() =>{
+    const log = await request(app)
+        .delete('/api/auth')
+        .set('Authorization', `Bearer ${testAuth}`);
+    expect(log.status).toBe(200);
+});
 
+test('Logout without the token', async() =>{
+    const log = await request(app)
+        .delete('/api/auth');
+    expect(log.status).toBe(401)
+})
