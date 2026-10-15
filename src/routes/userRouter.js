@@ -7,6 +7,32 @@ const userRouter = express.Router();
 
 userRouter.docs = [
   {
+  method: 'DELETE',
+  path: '/api/user/:userId',
+  requiresAuth: true,
+  description: 'Delete a user (admin only)',
+  example: `curl -X DELETE localhost:3000/api/user/1 -H 'Authorization: Bearer tttttt'`,
+  response: { message: 'user deleted' },
+  },
+  {
+  method: 'GET',
+  path: '/api/user?page=1&limit=10&name=*',
+  requiresAuth: true,
+  description: 'Gets a list of users',
+  example: `curl -X GET localhost:3000/api/user -H 'Authorization: Bearer tttttt'`,
+  response: {
+    users: [
+      {
+        id: 1,
+        name: 'Admin User',
+        email: 'a@jwt.com',
+        roles: [{ role: 'admin' }],
+      },
+    ],
+    more: true,
+  },
+},
+  {
     method: 'GET',
     path: '/api/user/me',
     requiresAuth: true,
@@ -56,17 +82,28 @@ userRouter.delete(
   '/:userId',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    res.json({ message: 'not implemented' });
-  })
+    if (!req.user.isRole(Role.Admin)) {
+      return res.status(403).json({ message: 'unauthorized' });
+    }
+    await DB.deleteUser(Number(req.params.userId));
+    res.json({ message: 'user deleted' });
+  }),
 );
 
-// listUsers
 userRouter.get(
   '/',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    res.json({ message: 'not implemented', users: [], more: false });
-  })
+    if (!req.user.isRole(Role.Admin)) {
+      return res.status(403).json({ message: 'unauthorized' });
+    }
+
+    const page = req.query.page ?? 1;
+    const limit = req.query.limit ?? 10;
+    const name = req.query.name ?? '*';
+    const [users, more] = await DB.getUsers(page, limit, name);
+    res.json({ users, more });
+  }),
 );
 
 module.exports = userRouter;

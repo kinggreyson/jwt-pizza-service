@@ -360,6 +360,43 @@ class DB {
     const [rows] = await connection.execute(`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, [config.db.connection.database]);
     return rows.length > 0;
   }
+
+  async deleteUser(userId) {
+  const connection = await this.getConnection();
+  try {
+    await this.query(connection, `DELETE FROM auth WHERE userId=?`, [userId]);
+    await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [userId]);
+    await this.query(connection, `DELETE FROM user WHERE id=?`, [userId]);
+  } finally {
+    connection.end();
+  }
+}
+  async getUsers(page = 1, limit = 10, nameFilter = '*') {
+  const connection = await this.getConnection();
+  try {
+    const safeLimit = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = this.getOffset(parseInt(page, 10) || 1, safeLimit);
+    const name = String(nameFilter).replace(/\*/g, '%');
+    const rows = await this.query(
+      connection,
+      `SELECT id, name, email FROM user WHERE name LIKE ? LIMIT ${safeLimit + 1} OFFSET ${offset}`,
+      [name]
+    );
+    const more = rows.length > safeLimit;
+    const users = rows.slice(0, safeLimit);
+
+    for (const user of users) {
+      const roleResult = await this.query(connection, `SELECT role, objectId FROM userRole WHERE userId=?`, [user.id]);
+      user.roles = roleResult.map((r) => (r.objectId ? { role: r.role, objectId: r.objectId } : { role: r.role }));
+    }
+
+    return [users, more];
+  } finally {
+    connection.end();
+  }
+
+  
+}
 }
 
 const db = new DB();
