@@ -17,6 +17,9 @@ app.use((req, res, next) => {
   next();
 });
 
+const metrics = require('./metrics');
+app.use(metrics.requestTracker);
+
 const apiRouter = express.Router();
 app.use('/api', apiRouter);
 apiRouter.use('/auth', authRouter);
