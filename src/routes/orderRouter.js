@@ -6,7 +6,8 @@ const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
 
 const orderRouter = express.Router();
 
-const metrics = require('../metrics');
+const metrics = require('../metrics.js');
+const logger = require('../logger.js')
 
 orderRouter.docs = [
   {
@@ -78,6 +79,7 @@ orderRouter.get(
 orderRouter.post('/', authRouter.authenticateToken, asyncHandler(async (req, res) => {
     const orderReq = req.body;
     const order = await DB.addDinerOrder(req.user, orderReq);
+    const factoryReq = { diner: { id: req.user.id, name: req.user.name, email: req.user.email }, order };
 
     const start = Date.now();
     const metric = await fetch(`${config.factory.url}/api/order`, {
@@ -87,6 +89,8 @@ orderRouter.post('/', authRouter.authenticateToken, asyncHandler(async (req, res
     });
     const j = await metric.json();
     const latency = Date.now() - start;
+
+    logger.factoryLogger(req.user, factoryReq, j, metric.ok);
 
     if (metric.ok) {
       const price = order.items.reduce((sum, item) => sum + item.price, 0);
